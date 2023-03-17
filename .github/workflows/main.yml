@@ -1,0 +1,40 @@
+name: mailarchive
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  GIT_VERSION: ${{github.event.inputs.release-ver}}
+  GIT_STRIPPED_VERSION: ${{github.event.inputs.stripped-release-ver}}
+  GIT_TAG: ${{ github.event.release.tag_name }}
+
+jobs:
+  print-inputs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: print debug information
+        run: |
+          echo "Dispatched GIT_VERSION: ${{github.event.inputs.release-ver}}"
+          echo "Dispatched GIT_STRIPPED_VERSION: ${{github.event.inputs.stripped-release-ver}}"
+          echo "Env GIT_VERSION: ${{env.GIT_VERSION}}"
+          echo "Env GIT_STRIPPED_VERSION: ${{env.GIT_STRIPPED_VERSION}}"
+          echo "Env GIT_TAG: ${{ github.event.release.tag_name }}"
+
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: check out repo
+        uses: actions/checkout@v2
+
+      - name: login to container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: build and publish docker image
+        run: |
+          docker build . --tag ghcr.io/mplx/mailarchive:latest
+          docker push ghcr.io/mplx/mailarchive:latest
