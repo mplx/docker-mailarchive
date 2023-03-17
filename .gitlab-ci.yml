@@ -1,0 +1,33 @@
+.semver-regex: &semver-regex /^([0-9]+)\.([0-9]+)\.([0-9]+)(-([0-9a-zA-Z.-]+))?$/
+
+variables:
+  DOCKER_DIND_SERVICE: $CI_REGISTRY/docker/dind:latest
+
+stages:
+  - build
+
+build:
+  stage: build
+  image: docker:latest
+  tags:
+    - docker-build
+  only:
+    - *semver-regex
+    - main
+  variables:
+    GIT_STRATEGY: clone
+    GIT_SUBMODULE_STRATEGY: recursive
+  services:
+    - name: $DOCKER_DIND_SERVICE
+      alias: docker
+  variables:
+    TEMPIMAGE: ci-build/$CI_PROJECT_PATH:$CI_JOB_ID
+  dependencies: []
+  script:
+    - |
+      docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+      docker build --pull --file ./Dockerfile --tag $TEMPIMAGE .
+      docker tag $TEMPIMAGE $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+      [ -z "$CI_COMMIT_TAG" ] || docker tag $TEMPIMAGE $CI_REGISTRY_IMAGE:latest
+      [ -z "$CI_COMMIT_TAG" ] || docker tag $TEMPIMAGE $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+      docker push --all-tags $CI_REGISTRY_IMAGE
